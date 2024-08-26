@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:auth_db
+    url: jdbc:h2:file:./data/auth_db;MODE=MySQL
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -14,3 +14,6 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+jwt:
+  secret: db267d55754fc50b1d0f5fb9696177e3089679de68ca13beed8e03b6f0effd5512ce123b5a894132784ca4b2d5d7eb8ac02c8c371326fe142e4416600dde595b131f5280d37e36cc5b931457ef7096c2e70c6b318ee5534894a1a48369b2fe5c56d5ec9f2541abd67778fc0ef0dc2039c26cd206a65235cfefafd81b86fc39ae51de1d69772026d678bcfdb10207b14d2a87e4ab08ebeacf553a9ed736a52d3203b55ce6900df90d54a3eddc9ae58ae0d0fe58b659de128a8347d275b5e3abc659202bc41de4410974ae11488f938be0891c92714efed1082fe2a8b171123cbbd8b9092715d9e90cf089412ae653b4282f85e1a1aba4fd2770fb2a1429e648e2
