@@ -1,17 +1,31 @@
 package com.study.SpringSecurityMybatis.service;
 
+import com.study.SpringSecurityMybatis.dto.request.ReqSigninDto;
 import com.study.SpringSecurityMybatis.dto.request.ReqSignupDto;
+import com.study.SpringSecurityMybatis.dto.response.RespDeleteUserDto;
+import com.study.SpringSecurityMybatis.dto.response.RespSigninDto;
 import com.study.SpringSecurityMybatis.dto.response.RespSignupDto;
 import com.study.SpringSecurityMybatis.entity.Role;
 import com.study.SpringSecurityMybatis.entity.User;
 import com.study.SpringSecurityMybatis.entity.UserRoles;
+import com.study.SpringSecurityMybatis.exception.DeleteUserException;
+import com.study.SpringSecurityMybatis.exception.SignupException;
 import com.study.SpringSecurityMybatis.repository.RoleMapper;
 import com.study.SpringSecurityMybatis.repository.UserMapper;
 import com.study.SpringSecurityMybatis.repository.UserRolesMapper;
+import com.study.SpringSecurityMybatis.security.jwt.JwtProvider;
+import com.study.SpringSecurityMybatis.security.principal.PrincipalUser;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.SQLException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -30,30 +44,79 @@ public class UserService {
     @Autowired
     private UserRolesMapper userRolesMapper;
 
+    @Autowired
+    private JwtProvider jwtProvider;
+
     public boolean isDuplicateUsername(String username) {
         return Optional.ofNullable(userMapper.findByUsername(username)).isPresent();
     }
 
-    public RespSignupDto insertUserAndRoles(ReqSignupDto dto) {
-        User user = dto.toEntity(passwordEncoder);
-        userMapper.save(user);
+    @Transactional(rollbackFor = SignupException.class)
+    public RespSignupDto insertUserAndRoles(ReqSignupDto dto) throws SignupException {
+        User user = null;
+        try {
+            user = dto.toEntity(passwordEncoder);
+            userMapper.save(user);
 
-        Role role = roleMapper.findByName("ROLE_USER");
-        if(role == null) {
-            roleMapper.save(Role.builder().name("ROLE_USER").build());
+            Role role = roleMapper.findByName("ROLE_USER");
+            if(role == null) {
+                roleMapper.save(Role.builder().name("ROLE_USER").build());
+            }
+
+            UserRoles userRoles = UserRoles.builder()
+                    .userId(user.getId())
+                    .roleId(role.getId())
+                    .build();
+            userRolesMapper.save(userRoles);
+
+            user.setUserRoles(Set.of(userRoles));
+        } catch(Exception e) {
+            throw new SignupException(e.getMessage());
         }
-
-        UserRoles userRoles = UserRoles.builder()
-                .userId(user.getId())
-                .roleId(role.getId())
-                .build();
-        userRolesMapper.save(userRoles);
-
-        user.setUserRoles(Set.of(userRoles));
 
         return RespSignupDto.builder()
                 .message("회원가입 완료")
                 .user(user)
+                .build();
+    }
+
+    public RespSigninDto generatedAccessToken(ReqSigninDto dto) {
+        User user = checkUsernameAndPassword(dto.getUsername(), dto.getPassword());
+        return RespSigninDto.builder()
+                .expireDate(jwtProvider.getExpireDate().toLocaleString())
+                .accessToken(jwtProvider.generatedAccessToken(user))
+                .build();
+    }
+
+    private User checkUsernameAndPassword(String username, String password) {
+        User user = userMapper.findByUsername(username);
+        if(user == null) {
+            throw new UsernameNotFoundException("사용자 정보를 확인하세요");
+        }
+        if(!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadCredentialsException("사용자 정보를 확인하세요");
+        }
+        return user;
+    }
+    @Transactional(rollbackFor = SQLException.class)
+    public RespDeleteUserDto deleteUser(Long id) {
+        User user = null;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        PrincipalUser principalUser = (PrincipalUser) authentication.getPrincipal();
+        if(principalUser.getId() != id) {
+            throw new AuthenticationServiceException("삭제 할 수 있는 권한이 없습니다.");
+        }
+        user = userMapper.findById(id);
+        if(user == null) {
+            throw new AuthenticationServiceException("해당 사용자는 존재하지 않는 사용자입니다.");
+        }
+        userMapper.deleteById(id);
+        userRolesMapper.deleteByUserId(id);
+
+        return RespDeleteUserDto.builder()
+                .isDelete(true)
+                .message("사용자 삭제 완료")
+                .deleteeduser(user)
                 .build();
     }
 }

@@ -1,7 +1,10 @@
 package com.study.SpringSecurityMybatis.controller;
 
 
+import com.study.SpringSecurityMybatis.aspect.annotation.ValidAop;
+import com.study.SpringSecurityMybatis.dto.request.ReqSigninDto;
 import com.study.SpringSecurityMybatis.dto.request.ReqSignupDto;
+import com.study.SpringSecurityMybatis.exception.SignupException;
 import com.study.SpringSecurityMybatis.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,20 +26,17 @@ public class AuthenticationController {
     @Autowired
     private UserService userService;
 
+    @ValidAop
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@Valid @RequestBody ReqSignupDto dto, BindingResult bindingResult) {
+    public ResponseEntity<?> signup(@Valid @RequestBody ReqSignupDto dto, BindingResult bindingResult) throws SignupException {
         log.info("{}", dto);
-        if(!dto.getPassword().equals(dto.getCheckPassword())) {
-            FieldError fieldError = new FieldError("checkPassword", "checkPassword", "비밀번호가 일치하지 않습니다.");
-            bindingResult.addError(fieldError);
-        }
-        if(userService.isDuplicateUsername(dto.getUsername())) {
-            FieldError fieldError = new FieldError("username", "username", "이미 존재하는 사용자`이름입니다.");
-            bindingResult.addError(fieldError);
-        }
-        if(bindingResult.hasErrors()) {
-            return ResponseEntity.badRequest().body(bindingResult.getFieldErrors());
-        }
         return ResponseEntity.ok().body(userService.insertUserAndRoles(dto));
+    }
+
+    @ValidAop
+    @PostMapping("/signin")
+    public ResponseEntity<?> signup(@Valid @RequestBody ReqSigninDto dto, BindingResult bindingResult) {
+        log.info("{}", dto);
+        return ResponseEntity.ok().body(userService.generatedAccessToken(dto));
     }
 }
