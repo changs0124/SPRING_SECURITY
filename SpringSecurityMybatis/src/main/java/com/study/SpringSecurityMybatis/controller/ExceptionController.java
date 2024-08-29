@@ -1,5 +1,6 @@
 package com.study.SpringSecurityMybatis.controller;
 
+import com.study.SpringSecurityMybatis.exception.AccessTokenValidException;
 import com.study.SpringSecurityMybatis.exception.SignupException;
 import com.study.SpringSecurityMybatis.exception.ValidException;
 import org.springframework.http.ResponseEntity;
@@ -29,5 +30,10 @@ public class ExceptionController {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<?> passwordException(BadCredentialsException e) {
         return ResponseEntity.internalServerError().body(e.getMessage());
+    }
+
+    @ExceptionHandler(AccessTokenValidException.class)
+    public ResponseEntity<?> accessTokenException(AccessTokenValidException e) {
+        return ResponseEntity.status(403).body(false);
     }
 }

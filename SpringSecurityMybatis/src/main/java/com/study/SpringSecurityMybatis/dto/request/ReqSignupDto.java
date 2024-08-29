@@ -2,8 +2,11 @@ package com.study.SpringSecurityMybatis.dto.request;
 
 import com.study.SpringSecurityMybatis.entity.User;
 import lombok.Data;
+import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 
 @Data
@@ -17,8 +20,13 @@ public class ReqSignupDto {
 
     private String checkPassword;
 
+    @NotBlank(message = "이름은 공백일 수 없습니다.")
     @Pattern(regexp = "^[가-힣]+$", message = "이름은 한글이어야합니다.")
     private String name;
+
+    @NotBlank(message = "이메일은 공백일 수 없습니다.")
+    @Email(message = "이메일 형식이여야 합니다.")
+    private String email;
 
 
     public User toEntity(BCryptPasswordEncoder passwordEncoder) {
@@ -26,6 +34,7 @@ public class ReqSignupDto {
                 .username(username)
                 .password(passwordEncoder.encode(password))
                 .name(name)
+                .email(email)
                 .build();
     }
 }
